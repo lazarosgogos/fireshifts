@@ -1,53 +1,60 @@
 import streamlit as st
 from openai import OpenAI
-
+import cpsat
 # Show title and description.
-st.title("📄 Document question answering")
+st.title("📄 Fire shifts scheduler")
 st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+    "Copy and paste your monthly shift schedule and let the tool work out the necessary types of work! "
+    # "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
 )
 
 # Ask user for their OpenAI API key via `st.text_input`.
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# openai_api_key = st.text_input("OpenAI API Key", type="password")
+data = """name          1	4	7	10	13	16	19	22	25	28	31
+ΠΟΤΗΡΑΣ	Ρ	. 	Ρ	 .	 .	. 	Ρ	 .	Ρ	Ρ	 .
+ΜΑΚΡΗΣ	 .	Ρ	 .	. 	Α	 .	 .	 .	 .	Α	Α
+ΓΩΓΟΣ	Ρ	.	Ρ	 .	 .	Ρ	 .	.	. 	. 	Ρ
+ΧΑΡΙΤΙΔΗΣ	 .	.	 .	 .	 .	 	Ρ	Ρ	Ρ	 .	Ρ .
+ΤΣΙΩΤΡΑΣ	Ρ	.	Ρ	Ρ	 .	 .	. 	Ρ	 .	 .	 .
+ΒΕΣΚΟΣ	 .	Ρ	 .	Α	Α	Ρ	 .	 .	. 	 .	 .
+ΚΙΟΣΣΕΣ	 .	Ρ	. 	 .	Ρ	 .	Ρ	 .	 .	Ρ	 .
+ΛΑΖΑΡΙΔΗΣ	.	 .	 .	Ρ	 .	Ρ	 .	Ρ	Ρ	 .	 .
+"""
+pasted = st.text_area("Paste your shifts here", placeholder=data, height="content")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+scheduler = cpsat.Fireshifts(data)
+# st.button(label, key=None, help=None, on_click=None, args=None, 
+# kwargs=None, *, type="secondary", icon=None, disabled=False, 
+# use_container_width=None, width="content")
 
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
-    )
+# results = None
+# dis = False
+# done = False
+# def schedule():
+#     global dis, done, results
+#     dis = True
+#     scheduler.create_model()
+#     scheduler.solve()
+#     results=scheduler.get_results()
+#     dis=False
+#     done = True
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+# st.button("Schedule", on_click=schedule, disabled=dis, )
+# if done:
+#     schedule_df, summary_df = scheduler.get_results()
+#     st.info(schedule_df)
+#     st.info(summary_df)
 
-    if uploaded_file and question:
-
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
-
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-        )
-
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+if st.button("Schedule"):
+    pasted = pasted if pasted else data
+    scheduler = cpsat.Fireshifts(pasted)
+    scheduler.create_model()
+    scheduler.solve()
+    schedule_df, summary_df = scheduler.get_results()
+    st.info("Schedule")
+    st.dataframe(schedule_df)
+    st.info("Summary")
+    st.dataframe(summary_df)
+    
