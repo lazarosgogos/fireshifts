@@ -21,6 +21,12 @@ class Fireshifts():
         num_dates = len(self.df.columns[1:]) # col 0 contains names
         num_telephones = len(self.telephones)
 
+        # for j, d in enumerate(self.dates):
+        #     for i, f in enumerate(self.firefighters):
+        #         if self.df.iloc[i, j+1] == '.':  # working that day
+        #             self.df.iat[i, j+1] = 'A'
+        #             break
+        # print(self.df)
         # create shift variables
         # shifts[(f,d,t)] = firefighter 'f' works on day 'd' the telephone 't'
         self.shifts = {}
@@ -28,7 +34,8 @@ class Fireshifts():
             for d in self.dates:
                 for t in self.telephones:
                     self.shifts[(f,d,t)] = self.model.new_bool_var(f"shift_f{f}_d{d}_t{t}")
-
+        
+        
         # each telephone is assigned to exactly one firefighter
         for d in self.dates:
             for t in self.telephones:
@@ -39,12 +46,15 @@ class Fireshifts():
             for f in self.firefighters:
                 self.model.add_at_most_one(self.shifts[(f,d,t)] for t in self.telephones)
 
+
         # make sure firefighters who don't work do not have any tel that day
         for i, f in enumerate(self.firefighters):
             for j, d in enumerate(self.dates):
                 if self.df.iloc[i, j+1] != '.':
                     for t in self.telephones:
                         self.model.add(self.shifts[(f,d,t)] == 0)
+
+            
 
         # try to distribute the telephones evenly to each firefighter
         # min_telephones_per_firefighter. if this is not feasible (quite possible)
@@ -70,15 +80,36 @@ class Fireshifts():
             for t in self.telephones:
                 counts[(f,t)] = self.model.new_int_var(0, num_dates, f"count_f{f}_t{t}")
                 self.model.add(counts[(f,t)] == sum(self.shifts[(f,d,t)] for d in self.dates))
+        
+        # # make CHIEF not have any telephone
+        # for d, chief in self.chiefs.items():
+        #     for t in self.telephones:
+        #         self.model.add(self.shifts[(chief, d, t)] == 0)
 
         # say each pair differs by at most 1
+        # for f in self.firefighters:
+        #     self.model.add(counts[(f, 'A')] - counts[(f, 'B')] <= 1)
+        #     self.model.add(counts[(f, 'B')] - counts[(f, 'A')] <= 1)
+        #     self.model.add(counts[(f, 'A')] - counts[(f, 'C')] <= 1)
+        #     self.model.add(counts[(f, 'C')] - counts[(f, 'A')] <= 1)
+        #     self.model.add(counts[(f, 'B')] - counts[(f, 'C')] <= 1)
+        #     self.model.add(counts[(f, 'C')] - counts[(f, 'B')] <= 1)
+        # say each pair differs by at most 1
+        violations = []
+        allowed_gap = 1
         for f in self.firefighters:
-            self.model.add(counts[(f, 'A')] - counts[(f, 'B')] <= 1)
-            self.model.add(counts[(f, 'B')] - counts[(f, 'A')] <= 1)
-            self.model.add(counts[(f, 'A')] - counts[(f, 'C')] <= 1)
-            self.model.add(counts[(f, 'C')] - counts[(f, 'A')] <= 1)
-            self.model.add(counts[(f, 'B')] - counts[(f, 'C')] <= 1)
-            self.model.add(counts[(f, 'C')] - counts[(f, 'B')] <= 1)
+            pairs = [('A', 'B'), ('A', 'C'), ('B', 'C')]
+            # pairs = [('B', 'C')]
+            for p,q in pairs:
+                abs_diff = self.model.new_int_var(0, num_dates, f"abs_{f}_{p}_{q}")
+                self.model.add_abs_equality(abs_diff, counts[(f,p)] - counts[(f,q)])
+
+                violation = self.model.new_int_var(0, num_dates, f"viol_{f}_{p}_{q}")
+
+                self.model.add(violation >= abs_diff - allowed_gap)
+
+                self.model.add(violation <= num_dates)
+                violations.append(violation)
 
         # total call shifts per firefighter  
         total_counts = {}
@@ -127,6 +158,9 @@ class Fireshifts():
                 summary.append(row)
 
             self.summary_df = pd.DataFrame(summary).set_index("Firefighter")
+        else:
+            self.schedule_df = pd.DataFrame()
+            self.summary_df = pd.DataFrame()
 
     def get_results(self):
         # print(self.schedule_df)
