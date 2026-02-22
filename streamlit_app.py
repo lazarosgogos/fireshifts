@@ -17,6 +17,7 @@ data = """name			1	4	7	10	13	16	19	22	25	28	31
 ΒΕΣΚΟΣ		.	P	 .	A	A	P	.	.	. 	.	.
 ΚΙΟΣΣΕΣ		.	P	. 	 .	P	.	P	.	.	P	.
 ΛΑΖΑΡΙΔΗΣ	.	 .	 .	P	.	P	.	P	P	.	.
+ΚΕΣΙΔΗΣ 	.	 .	 .	P	.	P	.	P	P	.	.
 """
 pasted = st.text_area("Paste your shifts here", placeholder=data, height="content")
 
